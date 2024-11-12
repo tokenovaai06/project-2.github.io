@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(to right, #fbc2eb, #a6c1ee);
+            overflow: hidden;
+        }
+        
+        .pogoda-app {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            animation: popUp 0.5s ease-out;
+        }
+        
+        .poisk-box {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .poisk-box input {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            outline: none;
+            font-size: 1em;
+            background-color: #f0f4ff;
+            color: #333;
+        }
+        
+        .poisk-box button {
+            padding: 14px;
+            background-color: #ffafbd;
+            border: none;
+            cursor: pointer;
+            color: #fff;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+
+        .poisk-box button:hover {
+            background-color: #ffc3a0;
+        }
+        
+        .pogoda-info {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .pogoda-info h2 {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+            color: #ff5f6d;
+        }
+        
+        .pogoda-info p {
+            font-size: 1em;
+            margin: 5px 0;
+            color: #333;
+        }
+        
+        .temp {
+            font-size: 3em;
+            color: #feb47b;
+            margin: 10px 0;
+        }
+        
+        .prognoz {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+        
+        .prognoz-day {
+            width: 18%;
+            text-align: center;
+            font-size: 0.9em;
+            color: #555;
+        }
+        
+        .prognoz-day img {
+            width: 60px;
+            height: 60px;
+            margin-top: 5px;
+        }
+        
+        @media (max-width: 500px) {
+            .temp {
+                font-size: 2.5em;
+            }
+            .prognoz-day img {
+                width: 45px;
+                height: 45px;
+            }
+        }
+
+        @keyframes popUp {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="pogoda-app">
+        <div class="poisk-box">
+            <input type="text" id="poisk-gorod" placeholder="Search the city">
+            <button id="poisk-btn">🔍</button>
+        </div>
+        
+        <div class="pogoda-info" id="pogoda-info">
+            <h2 id="gorod-name"></h2>
+            <p id="data"></p>
+            <p class="temp" id="temperatura"></p>
+            <p id="opisanie-pogody"></p>
+            <p>Humidity: <span id="vlazhnost"></span>% | Wind: <span id="skorost-vetra"></span> m/s</p>
+            
+            <div class="prognoz" id="prognoz">
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('poisk-btn').addEventListener('click', () => {
+            const gorod = document.getElementById('poisk-gorod').value;
+            if (gorod) {
+                poluchitDannyePogody(gorod);
+            } else {
+                alert("Please enter a city name.");
+            }
+        });
+
+        async function poluchitDannyePogody(gorod) {
+            const apiKey = 'bcba85ba36a40d73908b75186156c8ed';
+            const pogodaURL = `https://api.openweathermap.org/data/2.5/weather?q=${gorod}&units=metric&appid=${apiKey}`;
+            const prognozURL = `https://api.openweathermap.org/data/2.5/forecast?q=${gorod}&units=metric&appid=${apiKey}`;
+
+            try {
+                const otvetPogoda = await fetch(pogodaURL);
+                const dannyePogoda = await otvetPogoda.json();
+
+                if (dannyePogoda.cod !== 200) {
+                    alert("City not found. Please try again.");
+                    return;
+                }
+
+                otobrozhatPogodu(dannyePogoda);
+
+                const otvetPrognoz = await fetch(prognozURL);
+                const dannyePrognoz = await otvetPrognoz.json();
+                otobrozhatPrognoz(dannyePrognoz);
+            } catch (error) {
+                console.error("Error fetching weather data:", error);
+            }
+        }
+
+        function otobrozhatPogodu(dannye) {
+            document.getElementById('gorod-name').innerText = dannye.name;
+            document.getElementById('data').innerText = new Date().toDateString();
+            document.getElementById('temperatura').innerText = `${dannye.main.temp.toFixed(1)}°C`;
+            document.getElementById('opisanie-pogody').innerText = dannye.weather[0].description;
+            document.getElementById('vlazhnost').innerText = dannye.main.humidity;
+            document.getElementById('skorost-vetra').innerText = dannye.wind.speed;
+
+            document.getElementById('pogoda-info').style.display = 'block';
+        }
+
+        function otobrozhatPrognoz(dannye) {
+            const prognozContainer = document.getElementById('prognoz');
+            prognozContainer.innerHTML = '';
+
+            const spisokPrognoza = dannye.list.filter((_, index) => index % 8 === 0).slice(1, 6);
+            spisokPrognoza.forEach(prognoz => {
+                const den = new Date(prognoz.dt * 1000);
+                const imyaDnya = den.toLocaleDateString("en-US", { weekday: 'short' });
+                const ikonkaPogody = prognoz.weather[0].icon;
+                const tempMax = prognoz.main.temp_max.toFixed(1);
+                const tempMin = prognoz.main.temp_min.toFixed(1);
+
+                const prognozDen = document.createElement('div');
+                prognozDen.classList.add('prognoz-day');
+                prognozDen.innerHTML = `
+                    <p>${imyaDnya}</p>
+                    <img src="http://openweathermap.org/img/wn/${ikonkaPogody}.png" alt="${prognoz.weather[0].description}">
+                    <p>${tempMax}° / ${tempMin}°</p>
+                `;
+
+                prognozContainer.appendChild(prognozDen);
+            });
+        }
+    </script>
+</body>
+</html>

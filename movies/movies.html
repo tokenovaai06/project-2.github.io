@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movies App</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #111;
+      color: #fff;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      background-color: #141414;
+    }
+    header h1 {
+      color: #e50914;
+      margin: 0;
+      font-size: 2rem;
+    }
+    header .nav-buttons {
+      display: flex;
+      gap: 20px;
+    }
+    header .nav-buttons button {
+      color: #fff;
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      text-transform: uppercase;
+      font-weight: bold;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+    header .nav-buttons button:hover {
+      color: #e50914;
+    }
+    .search-bar {
+      display: flex;
+      justify-content: center;
+      margin: 20px;
+      align-items: center;
+    }
+    .search-bar input {
+      width: 70%;
+      padding: 10px;
+      font-size: 1rem;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      transition: background 0.3s ease;
+    }
+    .search-bar input:focus {
+      background: rgba(255, 255, 255, 0.5);
+      outline: none;
+    }
+    .banner {
+      position: relative;
+      height: 50vh;
+      background-size: cover;
+      background-position: center;
+      padding: 20px;
+      color: #fff;
+    }
+    .banner h1 {
+      font-size: 3rem;
+      font-weight: bold;
+    }
+    .banner p {
+      max-width: 50%;
+      font-size: 1.2rem;
+    }
+    .row {
+      margin: 20px;
+    }
+    .row__posters {
+      display: flex;
+      padding: 20px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .row__posters::-webkit-scrollbar {
+      display: none;
+    }
+    .row__posters img {
+      max-height: 200px;
+      margin-right: 10px;
+      transition: transform 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .row__posters img:hover {
+      transform: scale(1.08);
+    }
+    .favorite-icon {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      fill: #fff;
+      transition: fill 0.3s;
+    }
+    .favorite-icon.filled {
+      fill: #e50914;
+    }
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      background-color: #222;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+    }
+    .modal-content h2 {
+      margin-top: 0;
+    }
+    .movie-rating {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .star {
+      color: #e50914;
+      font-size: 1.5rem;
+      margin-right: 5px;
+    }
+    .modal-content button {
+      background-color: #e50914;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: background-color 0.3s ease;
+    }
+    .modal-content button:hover {
+      background-color: #b00712;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js" crossorigin></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+  <script type="text/babel">
+    const API_KEY = 'badc66d14b27038f733bc6d20f77c2a6';
+    const BASE_URL = 'https://api.themoviedb.org/3';
+    const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original/';
+
+    function App() {
+      const [movies, setMovies] = React.useState([]);
+      const [bannerMovie, setBannerMovie] = React.useState(null);
+      const [favorites, setFavorites] = React.useState([]);
+      const [modalMovie, setModalMovie] = React.useState(null);
+      const [searchQuery, setSearchQuery] = React.useState('');
+      const [isSearching, setIsSearching] = React.useState(false);
+      const [error, setError] = React.useState(null);
+      const [currentPage, setCurrentPage] = React.useState('home');
+
+      React.useEffect(() => {
+        fetchRandomMovies();
+      }, []);
+
+      React.useEffect(() => {
+        if (movies.length > 0) {
+          const intervalId = setInterval(() => {
+            setBannerMovie(prev => {
+              const nextIndex = (movies.indexOf(prev) + 1) % movies.length;
+              return movies[nextIndex];
+            });
+          }, 10000);
+
+          return () => clearInterval(intervalId);
+        }
+      }, [movies]);
+
+      async function fetchRandomMovies() {
+        try {
+          const request = await axios.get(
+            `${BASE_URL}/discover/movie?api_key=${API_KEY}&sort_by=popularity.desc`
+          );
+          setMovies(request.data.results);
+          setBannerMovie(request.data.results[0]);
+        } catch (err) {
+          console.error(err);
+          setError('Error fetching data');
+        }
+      }
+
+      function openModal(movie) {
+        setModalMovie(movie);
+      }
+
+      function closeModal() {
+        setModalMovie(null);
+      }
+
+      function handleSearchChange(event) {
+        setSearchQuery(event.target.value);
+      }
+
+      function handleKeyDown(event) {
+        if (event.key === 'Enter') {
+          fetchMovies(searchQuery);
+        }
+      }
+
+      function toggleFavorite(movie) {
+        if (favorites.some(fav => fav.id === movie.id)) {
+          removeFavorite(movie);
+        } else {
+          addFavorite(movie);
+        }
+      }
+
+      function addFavorite(movie) {
+        setFavorites(prev => [...prev, movie]);
+      }
+
+      function removeFavorite(movie) {
+        setFavorites(prev => prev.filter(fav => fav.id !== movie.id));
+      }
+
+      async function fetchMovies(query) {
+        if (query) {
+          setIsSearching(true);
+          setError(null);
+          try {
+            const request = await axios.get(
+              `${BASE_URL}/search/movie?api_key=${API_KEY}&query=${query}`
+            );
+            setMovies(request.data.results);
+            setBannerMovie(request.data.results[0]);
+          } catch (err) {
+            console.error(err);
+            setError('Error fetching data');
+          } finally {
+            setIsSearching(false);
+          }
+        } else {
+          fetchRandomMovies();
+        }
+      }
+
+      return (
+        <div>
+          <header>
+            <h1>MoviesApp</h1>
+            <div className="nav-buttons">
+              <button className="nav-button" onClick={() => setCurrentPage('home')}>Home</button>
+              <button className="nav-button" onClick={() => setCurrentPage('favorites')}>Favorites</button>
+            </div>
+            <div className="search-bar">
+              <input
+                type="text"
+                placeholder="Search Movies..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+          </header>
+          {currentPage === 'home' && (
+            <div>
+              {bannerMovie && (
+                <div className="banner" style={{ backgroundImage: `url(${IMAGE_BASE_URL}${bannerMovie.backdrop_path})` }}>
+                  <h1>{bannerMovie.title}</h1>
+                  <p>{bannerMovie.overview}</p>
+                </div>
+              )}
+              <div className="row">
+                <h2>Popular Movies</h2>
+                <div className="row__posters">
+                  {movies.map((movie) => (
+                    <div key={movie.id} style={{ position: 'relative' }}>
+                      <img
+                        src={`${IMAGE_BASE_URL}${movie.poster_path}`}
+                        alt={movie.title}
+                        onClick={() => openModal(movie)}
+                      />
+                      <svg
+                        className={`favorite-icon ${favorites.some(fav => fav.id === movie.id) ? 'filled' : ''}`}
+                        onClick={() => toggleFavorite(movie)}
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                      </svg>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {currentPage === 'favorites' && (
+            <div>
+              <h2>Favorites</h2>
+              <div className="row__posters">
+                {favorites.map((movie) => (
+                  <div key={movie.id} style={{ position: 'relative' }}>
+                    <img
+                      src={`${IMAGE_BASE_URL}${movie.poster_path}`}
+                      alt={movie.title}
+                      onClick={() => openModal(movie)}
+                    />
+                    <svg
+                      className="favorite-icon filled"
+                      onClick={() => toggleFavorite(movie)}
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                    </svg>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {modalMovie && (
+            <div className="modal active" onClick={closeModal}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <h2>{modalMovie.title}</h2>
+                <p>{modalMovie.overview}</p>
+                <div className="movie-rating">
+                  <div>
+                    {modalMovie.vote_average.toFixed(1)} / 10
+                  </div>
+                  <div>
+                    {Array.from({ length: 5 }, (_, index) => (
+                      <span
+                        key={index}
+                        className="star"
+                        style={{
+                          color: index < Math.round(modalMovie.vote_average / 2) ? '#e50914' : '#777',
+                        }}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={closeModal}>Close</button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('app'));
+  </script>
+</body>
+</html>
